@@ -1,0 +1,159 @@
+---
+title: "Detect Credit Card Fraud with Machine Learning"
+author: "Dory Munoko"
+date: "12/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, results='asis'}
+install.packages("ranger")
+install.packages("caret")
+install.packages("data.table")
+install.packages("caTools")
+install.packages("rpart.plot")
+install.packages("neuralnet")
+install.packages("gbm")
+```
+
+1. Import Dataset
+```{r, results='asis'}
+library(ranger)
+library(caret)
+library(data.table)
+library(caTools)
+library(stargazer)
+library(pROC)
+library(rpart)
+library(rpart.plot)
+library(neuralnet)
+```
+
+```{r, results='asis'}
+ccard_data <- read.csv("/Users/ruthb/Desktop/Dory's Projects/Credit Card Fraud Project/Credit-card-dataset/creditcard.csv")
+View(ccard_data)
+```
+
+2. Data Exploration
+```{r, results='asis'}
+head(ccard_data)
+tail(ccard_data)
+summary(ccard_data$Amount)
+nrow(ccard_data)
+dim(ccard_data)
+table(ccard_data$Class)
+names(ccard_data)
+var(ccard_data$Amount)
+sd(ccard_data$Amount)
+```
+
+3. Data Manipulation
+Apply scale() function to the amount component of our ccard_data amount.
+```{r, results='asis'}
+ccard_data$Amount=scale(ccard_data$Amount)
+NewData=ccard_data[,-c(1)]
+head(NewData)
+```
+
+4. Data Modeling
+We will split our dataset into training set as well as test set with a split ratio of 0.80. This means that 80% of our data will be attributed to the train_data whereas 20% will be attributed to the test data. We will then find the dimensions using the dim() function –
+```{r, results='asis'}
+set.seed(123)
+data_sample = sample.split(NewData$Class,SplitRatio=0.80)
+train_data = subset(NewData,data_sample==TRUE)
+test_data = subset(NewData,data_sample==FALSE)
+dim(train_data)
+dim(test_data)
+```
+
+```{r}
+Logistic_Model=glm(Class~.,test_data,family=binomial())
+summary(Logistic_Model)
+#stargazer(Logistic_Model, type = "text", se = list(Logistic_Model$rse))
+```
+5. Fitting Logistic Regression Model
+In this section of credit card fraud detection project, we will fit our first model. We will begin with logistic regression. A logistic regression is used for modeling the outcome probability of a class such as pass/fail, positive/negative and in our case – fraud/not fraud. We proceed to implement this model on our test data as follows –
+```{r, results='asis'}
+Logistic_Model=glm(Class~.,test_data,family=binomial())
+summary(Logistic_Model)
+```
+Visualize the model
+```{r, results='asis'}
+plot(Logistic_Model)
+```
+
+
+
+Plot ROC curve
+```{r, results='asis'}
+lr.predict <- predict(Logistic_Model,test_data, probability = TRUE)
+auc.gbm = roc(test_data$Class, lr.predict, plot = TRUE, col = "blue")
+```
+
+6. Fitting a Decision Tree Model
+```{r, results='asis'}
+decisionTree_model <- rpart(Class ~ . , ccard_data, method = 'class')
+predicted_val <- predict(decisionTree_model, ccard_data, type = 'class')
+probability <- predict(decisionTree_model, ccard_data, type = 'prob')
+rpart.plot(decisionTree_model)
+```
+
+7. Artificial Neural Network
+```{r, results='asis'}
+ANN_model =neuralnet (Class~.,train_data,linear.output=FALSE)
+plot(ANN_model)
+predANN=compute(ANN_model,test_data)
+resultANN=predANN$net.result
+resultANN=ifelse(resultANN>0.5,1,0)
+```
+
+8. Gradient Boosting (GBM)
+```{r, results='asis'}
+library(gbm, quietly=TRUE)
+# Get the time to train the GBM model
+system.time(
+       model_gbm <- gbm(Class ~ .
+               , distribution = "bernoulli"
+               , data = rbind(train_data, test_data)
+               , n.trees = 500
+               , interaction.depth = 3
+               , n.minobsinnode = 100
+               , shrinkage = 0.01
+               , bag.fraction = 0.5
+               , train.fraction = nrow(train_data) / (nrow(train_data) + nrow(test_data))
+)
+)
+# Determine best iteration based on test data
+gbm.iter = gbm.perf(model_gbm, method = "test")
+```
+
+```{r, results='asis'}
+model.influence = relative.influence(model_gbm, n.trees = gbm.iter, sort. = TRUE)
+#Plot the gbm model
+plot(model_gbm)
+```
+
+```{r, results='asis'}
+# Plot and calculate AUC on test data
+gbm_test = predict(model_gbm, newdata = test_data, n.trees = gbm.iter)
+gbm_auc = roc(test_data$Class, gbm_test, plot = TRUE, col = "red")
+```
+
+```{r, results='asis'}
+print(gbm_auc)
+```
+
+
+
+
+
+
+
+
+
+
+
+
