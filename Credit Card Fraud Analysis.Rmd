@@ -1,6 +1,6 @@
 ---
 title: "Detect Credit Card Fraud with Machine Learning"
-author: "Dory Munoko"
+author: "Dorcas Munoko"
 date: "12/21/2021"
 output: html_document
 ---
